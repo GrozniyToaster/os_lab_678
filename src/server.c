@@ -6,13 +6,14 @@
 #include <assert.h>
 
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include <ftw.h>
+#include <signal.h>
 
 #include "structs.h"
 
 #define MAX_CHILD 54
-
 
 
 int COUNT_CHILD = 0;
@@ -23,7 +24,7 @@ char CHILD_NAME[] = "./client";
 
 INFO MyPassport;
 
-void initialize( INFO* inf ){
+void initialize( INFO* info ){
     char *dir_name = mkdtemp(TEMP_DIR);
 
     if(dir_name == NULL){
@@ -31,12 +32,17 @@ void initialize( INFO* inf ){
         exit(0);
     }
     char buf[BUF_SIZE];
-    sprintf( buf, "ipc://%s/father", TEMP_DIR );
-    strcpy( inf -> OUT_SOCKET_NAME, buf );
-    inf -> CONTEXT = zmq_ctx_new ();
-    inf -> OSTREAM = zmq_socket ( inf -> CONTEXT, ZMQ_PAIR );
-    inf -> MY_ID = -1;
-    int rc = zmq_connect ( inf -> OSTREAM, inf -> OUT_SOCKET_NAME );
+    sprintf( info -> TOSN, "ipc://%s/father.out", TEMP_DIR );
+    //strcpy( info -> TOS, buf );
+    sprintf( info -> TISN, "ipc://%s/father.in", TEMP_DIR );
+    //strcpy( info -> TOS, buf );
+    info -> CONTEXT = zmq_ctx_new ();
+    info -> TOS = zmq_socket ( info -> CONTEXT, ZMQ_REQ );
+    info -> TIS = zmq_socket ( info -> CONTEXT, ZMQ_REP );
+    info -> MY_ID = -1;
+    int rc = zmq_connect ( info -> TOS, info -> TOSN );
+    assert (rc == 0); // perror
+    rc = zmq_connect ( info -> TIS, info -> TISN );
     assert (rc == 0); // perror
     
     for ( int i = 0 ; i < MAX_CHILD; i++ ){
@@ -58,9 +64,18 @@ int rmrf(char *path){
 }
 
 void deinitialize( INFO* info ){
-    zmq_close (info -> OSTREAM);
+    zmq_close (info -> TOS);
+    zmq_close (info -> TIS);
+    /*
+    for ( int i = 0; i < MAX_CHILD; ++i ){
+        if ( CHILDS[i] != -1 ){
+            kill( CHILDS[i] , SIGKILL );
+        }
+    }
+    */
     zmq_ctx_destroy (info -> CONTEXT);
     rmrf( TEMP_DIR );
+    kill( 0, SIGKILL );
 }
 
 int initChild( int id ){
@@ -75,11 +90,15 @@ int initChild( int id ){
     }
 
     char argID[3];
-    char arg_in_socket[BUF_SIZE];
-    char arg_out_socket[BUF_SIZE];
+    char arg_head_socket_in[BUF_SIZE];
+    char arg_head_socket_out[BUF_SIZE];
+    char arg_tail_socket_in[BUF_SIZE];
+    char arg_tail_socket_out[BUF_SIZE];
     sprintf(argID, "%d", id );
-    sprintf(arg_in_socket, "ipc://%s/father", TEMP_DIR  );
-    sprintf(arg_out_socket, "ipc://%s/%d.out", TEMP_DIR, id );
+    sprintf(arg_head_socket_in, "ipc://%s/father.out", TEMP_DIR  );
+    sprintf(arg_head_socket_out, "ipc://%s/father.in", TEMP_DIR  );
+    sprintf(arg_tail_socket_out, "ipc://%s/%d.out", TEMP_DIR, id );
+    sprintf(arg_tail_socket_in, "ipc://%s/%d.out", TEMP_DIR, id );
 
 
     int childPID;
@@ -87,7 +106,7 @@ int initChild( int id ){
         printf("Fork err\n");
         return 1;
     }else if ( childPID == 0 ){
-        execl( CHILD_NAME, argID, arg_in_socket, arg_out_socket, NULL );
+        execl( CHILD_NAME, argID, arg_head_socket_in, arg_head_socket_out, arg_tail_socket_out, arg_tail_socket_in, NULL );
     }else{
         CHILDS[ id ] = childPID;
         COUNT_CHILD++;
@@ -107,6 +126,7 @@ int main (void){
     //assert (rc == 0);
     char buffer[10];
     initChild(1);
+    //initChild(2);
     /*
     int i =0;
     i++;
@@ -114,13 +134,26 @@ int main (void){
     printf( "%d %s\n", i,buffer );
     sleep (1);          //  Do some 'work'
     */
-    zmq_send (MyPassport.OSTREAM, "Hi son!!!", 10, 0);
-    zmq_recv (MyPassport.OSTREAM, buffer,10 , 0);
-    printf("Serv %s\n",buffer);
+    
+    char kek[] ="";
+
+    message toSend;
+    messageInit( &toSend, -1, 1, CALCULATE, kek , 0, 0  );
+    zmq_send (MyPassport.TOS, &toSend, sizeof( message ), 0);
+    zmq_recv (MyPassport.TOS, &toSend, sizeof(message) , 0);
+    
+    //messageInit( &toSend, -1, 2, CALCULATE, kek, 0, 0  );
+    //zmq_send (MyPassport.TOS, &toSend, sizeof( message ), 0);
+    
     sleep(3);
-    zmq_recv (MyPassport.OSTREAM, buffer,10 , 0);
-    printf("Serv %s\n",buffer);
-    zmq_send (MyPassport.OSTREAM, "Ofcorse!!", 10, 0);
+    zmq_recv (MyPassport.TIS, &toSend, sizeof(message) , 0);
+    
+    printf("Serv %s\n", toSend.data );
+    //zmq_recv (MyPassport.TOS, &toSend, sizeof( message ), 0);
+    //printf("Serv %s\n", toSend.data );
+    //printf("Serv %s\n", toSend.data );
+    //zmq_send (MyPassport.OSTREAM, "Ofcorse!!", 10, 0);
+    zmq_send (MyPassport.TIS, &toSend, sizeof( message ), 0);
 
     deinitialize( &MyPassport );
     //zmq_close (MyPassport.OSTREAM);

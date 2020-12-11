@@ -5,33 +5,37 @@
 #define TO_ALL -42
 
 typedef enum {
+    REPLY,
     RECONNECT,
     CALCULATE,
+    ANSWER,
     PING,
-    DATA
+    DATA,
+    ERR
 } Command;
 
 
 typedef struct {
-    char IN_SOCKET_NAME [BUF_SIZE];
-    char OUT_SOCKET_NAME [BUF_SIZE];
+    char HISN [BUF_SIZE]; //HEAD_INPUT_SOCKET_NAME
+    char HOSN [BUF_SIZE]; //HEAD_OUTPUT_SOCKET_NAME
+    char TISN [BUF_SIZE]; //TAIL_INPUT_SOCKET_NAME
+    char TOSN [BUF_SIZE]; //TAIL_OUTPUT_SOCKET_NAME
     int MY_ID;
-    void* ISTREAM;
-    void* OSTREAM;
+    void* HIS; // HEAD_INPUT_STREAM
+    void* HOS; // HEAD_OUTPUT_STREAM
+    void* TIS; // TAIL_INPUT_STREAM
+    void* TOS; // TAIL_OUTPUT_STREAM
     void* CONTEXT;
 } INFO ;
 
 
 typedef struct{
-    
     int sender;
     int recipient;
     Command type; 
     char data[BUF_SIZE];
     int moreData;
     int messageID;
-
-
 } message;
 
 void messageInit( message* mes, int s,int r, Command t, char* d, int flag, int id  ){
