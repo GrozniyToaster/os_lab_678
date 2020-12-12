@@ -11,6 +11,8 @@
 #include <string.h>
 #include <time.h>
 #include <zmq.h>
+#include <stdbool.h>
+#include <ctype.h>
 
 #include "structs.h"
 
@@ -21,7 +23,6 @@ int COUNT_CHILD = 0;
 int CHILDS[MAX_CHILD];
 char TEMP_DIR[] = "/tmp/lab678.XXXXXX";
 const char CHILD_NAME[] = "./client";
-//char OUTPUT_NAME[] = "./output_module";
 IDCard ID;
 
 
@@ -72,13 +73,12 @@ void deinitialize( IDCard* ID ){
     
     for ( int i = 0; i < MAX_CHILD; ++i ){
         if ( CHILDS[i] != -1 ){
-            kill( CHILDS[i] , SIGKILL );
+            kill( CHILDS[i] , SIGTERM );
         }
     }
     
     zmq_ctx_destroy (ID -> CONTEXT);
     rmrf( TEMP_DIR );
-    //kill( 0, SIGKILL );
 }
 
 void recreateOutput(){
@@ -90,11 +90,10 @@ void recreateOutput(){
 }
 
 
-int initChild( int id ){
+int child_init( int id ){
     if ( CHILDS[id] != -1 ){
         return 2;
     }
-    
     if ( COUNT_CHILD != 0 ){
         printf("Sendind rebuild\n");
         zmq_msg_t toRebuild;
@@ -175,50 +174,85 @@ void ping(){
     }
     char res[BUF_SIZE];
     if ( count_to_kill == 0 ){
-        printf( "Ok: -1\n" );
+        printf( "Ok:-1\n" );
         return;
     }
     res[0] = '\0';
     for ( int i = 0; i < count_to_kill; i++ ){
         char tmp[5];
-        sprintf( tmp, "%d ", tokill[i] );
+        sprintf( tmp, "%d;", tokill[i] );
         strcat( res, tmp );
         kill( CHILDS[ tokill[i] ] , SIGTERM );
         CHILDS[ tokill[i] ] = -1; 
     }
-    printf("Ok: %s\n", res );
+    printf("Ok:%s\n", res );
 }
 
+
+void remove_node( int id ){
+    if ( CHILDS[id] == -1 ){
+        printf( "Does not exist\n" );
+        return;
+    }
+    char kek[] = "You must die";
+    zmq_msg_t rem_message;
+    zmq_messageInit( &rem_message, MAIN_MODULE, id, MAIN_MODULE, DELETE, kek, 0, 0  );
+    zmq_msg_send( &rem_message, ID.OS, 0 );
+    CHILDS[id] = -1;
+}
+
+void calculate( int id, int k, char* line , int n ){
+    if ( CHILDS[id] == -1 ){
+        printf( "Does not exist\n" );
+        return;
+    }
+    zmq_msg_t calc_message;
+    zmq_messageInit( &calc_message, MAIN_MODULE, id, MAIN_MODULE, CALCULATE, line, 0, 0  );
+    zmq_msg_send( &calc_message, ID.OS, 0 );
+}
+
+void preCalulate(){
+    int id;
+    int k;
+    char* line;
+    size_t  line_size = 0;
+    scanf( "%d %d", &id, &k );
+    getline( &line, &line_size, stdin );
+    calculate( id, k, line , line_size );
+    free( line );
+}
+
+void cycle(){
+    char command[BUF_SIZE];
+    while ( true ){
+        scanf("%s", command);
+        if ( strcmp( command, "exec" ) == 0 ){
+            preCalulate();
+        }else if ( strcmp( command, "pingall" ) == 0 ){
+            ping();
+        }else if ( strcmp( command, "create" ) == 0 ){
+            int id;
+            scanf( "%d", &id );
+            child_init( id );
+            scanf( "%d", &id );
+        }else if ( strcmp( command, "remove" ) == 0 ){
+            int id;
+            scanf( "%d", &id );
+            remove_node( id );
+        }else if ( strcmp( command, "exit" ) == 0 ){
+            break;
+        }else{
+            printf("Unknown command\n");
+        }
+        sleep(1);
+    }
+}
 
 
 int main (void){
 
     initialize( &ID );
-    initChild(1);
-    //sleep(1);
-    initChild(2);
-    //sleep(1);
-    initChild(3);
-
-    char kek[] ="1 2 3 4 5";
-    sleep(1);
-    //ping();
-    //zmq_msg_t toSend;
-    //message_standart( &toSend, MAIN_MODULE, 3, DELETE, "" );
-    //zmq_msg_send (&toSend, ID.OS ,  0);
-    //ping();
-    for ( int i = 1 ; i < 4 ; i++ ){
-        sleep(1);
-        zmq_msg_t toSend;
-        zmq_messageInit( &toSend, -1, 1, -1, CALCULATE, kek , 1, 0  );
-        zmq_msg_send (&toSend, ID.OS ,  0);
-        zmq_msg_close( &toSend );
-    }
-    zmq_msg_t toSend;
-        zmq_messageInit( &toSend, -1, 1, -1, CALCULATE, kek , 0, 0  );
-        zmq_msg_send (&toSend, ID.OS ,  0);
-        zmq_msg_close( &toSend );
-    sleep(3);
+    cycle();
     deinitialize( &ID );
     return 0;
 }
