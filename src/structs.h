@@ -17,8 +17,7 @@ typedef enum {
 
 typedef enum {
     MAIN,
-    CALCULATOR,
-    OUTPUT
+    CALCULATOR
 } type_of_node;
 
 typedef struct {
@@ -32,6 +31,7 @@ typedef struct {
     void* OS; // OUTPUT_STREAM
     void* PS; // OUTPUT_STREAM
 } IDCard ;
+
 
 
 typedef struct{
