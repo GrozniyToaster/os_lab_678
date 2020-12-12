@@ -7,125 +7,111 @@
 #include "structs.h"
 
 #include <error.h>
+#include <time.h>
 
-INFO MyPassport;
+IDCard ID;
 
 
-void getINFO( INFO* inf, const int argc,  char** argv ){
-    if ( argc != 5  ){
-        printf("Usage <id> <in socket head> <out socket head> <out socket tail> <in socket tail>\n");
+void getIDCard( IDCard* inf, const int argc,  char** argv ){
+    if ( argc != 3  ){
+        printf("Usage <id> <in socket> <out socket>\n");
         exit (1);
     }
+    for ( int i = 0; i< argc; i++ ){
+        //printf("Client args: %s\n", argv[i]);
+    }
     inf -> MY_ID = atoi( argv[0] );
-    strcpy( inf -> HISN, argv[1] );
-    //printf("HISN %s\n", inf -> HISN);
-    strcpy( inf -> HOSN, argv[2] );
-    strcpy( inf -> TISN, argv[3] );
-    //printf("TISN %s\n", inf -> TISN);
-    strcpy( inf -> TOSN, argv[4] );
+    strcpy( inf -> ISN, argv[1] );
+    strcpy( inf -> OSN, argv[2] );
 }
 
-void initialize( INFO* info ){
-    info -> CONTEXT = zmq_ctx_new ();
-    info -> HIS = zmq_socket ( info -> CONTEXT, ZMQ_REP );
-    info -> HOS = zmq_socket ( info -> CONTEXT, ZMQ_REQ );
-    info -> TIS = zmq_socket ( info -> CONTEXT, ZMQ_REP );
-    info -> TOS = zmq_socket ( info -> CONTEXT, ZMQ_REQ );
-    int rc = zmq_bind ( info -> HOS, info -> HOSN );
+void initialize( IDCard* ID ){
+    ID -> CONTEXT = zmq_ctx_new ();
+    ID -> IS = zmq_socket ( ID -> CONTEXT, ZMQ_REP );
+    ID -> OS = zmq_socket ( ID -> CONTEXT, ZMQ_REQ );
+    int rc = zmq_connect ( ID -> OS, ID -> OSN );
     assert (rc == 0); // perror
-    rc = zmq_bind ( info -> HIS, info -> HISN );
+    rc = zmq_bind ( ID -> IS, ID -> ISN );
     assert (rc == 0); // perror
-    rc = zmq_connect ( info -> TIS, info -> TISN );
-    assert (rc == 0); // perror
-    rc = zmq_connect ( info -> TOS, info -> TOSN );
-    assert (rc == 0); // perror
-    //printf( "child %d initialized\n", MyPassport.MY_ID );
+
+    //printf( "child %d initialized\n", ID.MY_ID );
 } 
 
-void deinitialize( INFO* info ){ // on signals
-    zmq_disconnect  (info -> TOS, info -> TOSN);
-    zmq_unbind  (info -> TIS, info -> TISN);
-    
-    //zmq_close (info -> OSTREAM);
-    zmq_ctx_destroy (info -> CONTEXT);
+void deinitialize( IDCard* ID ){ // on signals
+    zmq_close(ID -> OS);
+    zmq_close(ID -> IS);
+    zmq_ctx_destroy (ID -> CONTEXT);
 }
-
+/*
 void recreateOutput(){
-    zmq_close (MyPassport.TOS);
-        zmq_close (MyPassport.TIS);
-        MyPassport.HOS = zmq_socket ( MyPassport.CONTEXT, ZMQ_REQ );
-        MyPassport.HIS = zmq_socket ( MyPassport.CONTEXT, ZMQ_REP );
-        int rc = zmq_connect ( MyPassport.TOS, MyPassport.TOSN );
+    zmq_close (ID.TOS);
+        zmq_close (ID.TIS);
+        ID.HOS = zmq_socket ( ID.CONTEXT, ZMQ_REQ );
+        ID.HIS = zmq_socket ( ID.CONTEXT, ZMQ_REP );
+        int rc = zmq_connect ( ID.TOS, ID.TOSN );
         assert (rc == 0); // perror
-        rc = zmq_connect ( MyPassport.TIS, MyPassport.TISN );
+        rc = zmq_connect ( ID.TIS, ID.TISN );
         assert (rc == 0); // perror
 }
-
 void reconnect( message* m ){
     //printf("starting reconnect\n");
-    int rc = zmq_unbind( MyPassport.HIS, MyPassport.HISN );
+    int rc = zmq_unbind( ID.HIS, ID.HISN );
     assert (rc == 0);
-    rc = zmq_unbind( MyPassport.HOS, MyPassport.HOSN );
+    rc = zmq_unbind( ID.HOS, ID.HOSN );
     assert (rc == 0);
-    //printf("child %d Disconect %s\n", MyPassport.MY_ID, MyPassport.HISN );
+    //printf("child %d Disconect %s\n", ID.MY_ID, ID.HISN );
     
-    MyPassport.HOS = zmq_socket ( MyPassport.CONTEXT, ZMQ_REQ );
-    MyPassport.HIS = zmq_socket ( MyPassport.CONTEXT, ZMQ_REP );
+    ID.HOS = zmq_socket ( ID.CONTEXT, ZMQ_REQ );
+    ID.HIS = zmq_socket ( ID.CONTEXT, ZMQ_REP );
     sleep(2);
     char* tok = strtok( m -> data , " ");
-    //printf( "%d reconnect HIS to %s\n", MyPassport.MY_ID,tok );
-    rc = zmq_bind( MyPassport.HIS, m -> data );
+    //printf( "%d reconnect HIS to %s\n", ID.MY_ID,tok );
+    rc = zmq_bind( ID.HIS, m -> data );
     assert (rc == 0);
     
-    strcpy( MyPassport.HISN, tok );
+    strcpy( ID.HISN, tok );
     
     tok = strtok( NULL , " ");
-    //printf( "%d reconnect HOS to %s}\n", MyPassport.MY_ID,tok );
-    rc = zmq_bind( MyPassport.HOS, tok );
+    //printf( "%d reconnect HOS to %s}\n", ID.MY_ID,tok );
+    rc = zmq_bind( ID.HOS, tok );
     assert (rc == 0);
     
-    strcpy( MyPassport.HOSN, tok );
-    //printf("child %d binded to %s\n", MyPassport.MY_ID, MyPassport.HISN );
+    strcpy( ID.HOSN, tok );
+    //printf("child %d binded to %s\n", ID.MY_ID, ID.HISN );
 
 }
+*/
 
-void forward( message* m, void* deraction ){
-    m -> lastowner = MyPassport.MY_ID;
-    printf("Forward from %d to %d mess: %s \n", m -> sender , m ->recipient, m -> data );
-    zmq_send( deraction, m, sizeof( message ), 0 );
-    printf("%d wait complete forword to %d\n", MyPassport.MY_ID , m ->recipient );
-    zmq_recv( deraction, m, sizeof( message ), 0 );
-    printf(" %d Forward ended from %d to %d %s\n", MyPassport.MY_ID , m -> sender , m ->recipient, m -> data );
-    
-    if ( m -> type == ERR ){
-        printf("mess with err");
-    }
+void forward( message* m ){
+    zmq_msg_t answer;
+    zmq_messageInit( &answer, m -> sender, m ->recipient, ID.MY_ID, m -> type, m -> data, m -> moreData, m -> messageID );
+    printf("%d Forward from %d to %d mess: %s \n", ID.MY_ID,m -> sender , m ->recipient, m -> data );
+    zmq_msg_send( &answer, ID.OS, 0 );
+    zmq_msg_close( &answer );
+    sleep(1);
+    //printf("%d wait complete forword to %d\n", ID.MY_ID , m ->recipient );
+    zmq_msg_t rep;
+    zmq_msg_recv(  &rep, ID.OS, 0 );
+    zmq_msg_close( &rep );
+    //printf(" %d Forward ended from %d to %d %s\n", ID.MY_ID , m -> sender , m ->recipient, m -> data );
 }
 
 int i = 1;
 
 void calculate( message* m ){
-    message answer;
-    char bud[BUF_SIZE];
-    sprintf( bud, "Answer %d from %d", i, MyPassport.MY_ID );
-    messageInit( &answer, MyPassport.MY_ID, m -> sender, MyPassport.MY_ID, ANSWER, bud, 0, 0 );
-    forward( &answer, MyPassport.HOS );
+    message to_send;
+    char ans[BUF_SIZE];
+    sprintf( ans, "Answer %d from %d", i, ID.MY_ID );
+    messageInit( &to_send, ID.MY_ID, m -> sender, ID.MY_ID, ANSWER, ans, 0, 0 );
+    forward( &to_send );
 }
 
 
 void parseMessage( message* m, int from  ){
-    printf( "Child %d received mess: s %d r %d data %s\n", MyPassport.MY_ID, m -> sender, m -> recipient, m -> data );
-    if ( MyPassport.MY_ID != m -> recipient && m -> recipient != TO_ALL && m -> recipient != FIRST_WATCHED ){ // first watching message
+    //printf( "Child %d received mess: s %d r %d data %s\n", ID.MY_ID, m -> sender, m -> recipient, m -> data );
+    if ( ID.MY_ID != m -> recipient && m -> recipient != TO_ALL && m -> recipient != FIRST_WATCHED ){ // first watching message
         //printf( "dirrect %d\n", from);
-        if ( from == 0 ){
-            forward( m, MyPassport.TOS );
-        }else{
-            forward( m, MyPassport.HOS );
-        }
-        return;
-    }
-    if ( m -> type == RECONNECT ){
-        reconnect( m );
+        forward( m );
         return;
     }
     if ( m -> type == CALCULATE ){
@@ -133,69 +119,55 @@ void parseMessage( message* m, int from  ){
     }
 }
 
-void answer( void* deraction, message* m ){
-    message toAnswer;
-    char kek[] = "Forworded";
-    messageInit( &toAnswer, MyPassport.MY_ID, m->lastowner, MyPassport.MY_ID, REPLY, kek, 0,0  );
-    zmq_send( deraction, &toAnswer, sizeof( message ), 0 );
-    printf( "child %d answered %d\n", MyPassport.MY_ID ,m -> lastowner );
+void answer(){
+    sleep(1);
+    zmq_msg_t toAnswer;
+    char answer[] = "Forworded";
+    zmq_messageInit( &toAnswer, ID.MY_ID, ID.MY_ID, ID.MY_ID, REPLY, answer, 0, 0 );
+    zmq_msg_send( &toAnswer, ID.IS, 0 );
+    zmq_msg_close(&toAnswer);
+    //printf( "child %d answered \n", ID.MY_ID  );
 }
 
 void cycle (){
-    message received;
+    message data;
     while ( 1 ){
-        printf( "child %d\n", MyPassport.MY_ID );
-        printf( "id %d hisn %s tisn %s\n\t hosn %s tosn %s\n", MyPassport.MY_ID, MyPassport.HISN, MyPassport.TISN, MyPassport.HOSN, MyPassport.TOSN );
-        zmq_recv( MyPassport.TIS, &received, sizeof( received ), ZMQ_DONTWAIT );
+        zmq_msg_t received;
+        zmq_msg_init_size( &received, sizeof(message) );
+        //printf( "id %d hisn %s tisn %s\n\t hosn %s tosn %s\n", ID.MY_ID, ID.HISN, ID.TISN, ID.HOSN, ID.TOSN );
+        printf( "child %d waiting task\n", ID.MY_ID );
+        zmq_msg_recv( &received, ID.IS, 0 );
+        //if ( errno != EAGAIN ){
+            memcpy( &data, zmq_msg_data(&received),  sizeof(message));
+            zmq_close( &received );
+            answer();
+            parseMessage( &data, 1 );
+
+        //}
+        
+            
+        
+        /*
+        zmq_recv( ID.HIS, &received, sizeof( received ), ZMQ_DONTWAIT );
         if ( errno != EAGAIN ){
-            answer( MyPassport.TIS, &received );
-            parseMessage( &received, 1 );
+            memcpy( &data, zmq_msg_data(&received),  sizeof(message));
+            printf("%d gain from head\n", ID.MY_ID);    
+            answer( ID.HIS, &data );
+            parseMessage( &data, 0 );
             
         }
-        zmq_recv( MyPassport.HIS, &received, sizeof( received ), ZMQ_DONTWAIT );
-        if ( errno != EAGAIN ){
-            printf("%d gain from head\n", MyPassport.MY_ID);    
-            answer( MyPassport.HIS, &received );
-            parseMessage( &received, 0 );
-            
-        }
-        sleep(1);
+        */
+        //sleep(1);
     }
 }
 
 
 int main (int argc, char* argv[] ){
-    //printf ("Connecting to hello world server…\n");
-
-    //printf( "argc %d\n", argc );
-    for( int i = 0; i < argc ; i++ ){
-        //printf( "%s\n", argv[i] );
-    }
-    getINFO( &MyPassport, argc, argv );
-    initialize( &MyPassport );
-    //void* context = zmq_ctx_new ();
-    //void* in = zmq_socket (context, ZMQ_PAIR );
-    //printf( "Client %s\n", myPassport.IN_SOCKET );
-    //printf( "ID %d, IN %s, OUT %s\n", myPassport.MY_ID, myPassport.IN_SOCKET, myPassport.OUT_SOCKET );
-    //zmq_bind ( in, MyPassport.IN_SOCKET_NAME );
-    char buf[80];
-    /*zmq_recv( MyPassport.ISTREAM, buf, 10, 0 );
-    printf("Client %s\n", buf);
-    zmq_send(MyPassport.ISTREAM, "HiServ!!!", 10, 0);
-    zmq_send(MyPassport.ISTREAM, "May i ask", 10, 0);
-    zmq_recv( MyPassport.ISTREAM, buf, 10, 0 );
-    printf("Client %s\n", buf);
-    */
-    
+    getIDCard( &ID, argc, argv );
+    initialize( &ID );
+    time_t t = time(NULL);
+    printf( "%d ready %ld\n", ID.MY_ID,t );
     cycle();
-    //void* out = zmq_socket (context, ZMQ_PAIR );
-    /*
-    
-    printf( "%s\n", buf );
-
-    zmq_close (in);
-    //zmq_ctx_destroy (context);
-    */
-    deinitialize( &MyPassport );
+    deinitialize( &ID );
     return 0;
 }

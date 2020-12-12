@@ -1,9 +1,9 @@
 #pragma once
 
 #define BUF_SIZE 256
-
+#define MAIN_MODULE -1
 #define TO_ALL -42
-#define FIRST_WATCHED 87
+#define FIRST_WATCHED -87
 
 typedef enum {
     REPLY,
@@ -15,37 +15,53 @@ typedef enum {
     ERR
 } Command;
 
+typedef enum {
+    MAIN,
+    CALCULATOR,
+    OUTPUT
+} type_of_node;
 
 typedef struct {
-    char HISN [BUF_SIZE]; //HEAD_INPUT_SOCKET_NAME
-    char HOSN [BUF_SIZE]; //HEAD_OUTPUT_SOCKET_NAME
-    char TISN [BUF_SIZE]; //TAIL_INPUT_SOCKET_NAME
-    char TOSN [BUF_SIZE]; //TAIL_OUTPUT_SOCKET_NAME
+    type_of_node type;
     int MY_ID;
-    void* HIS; // HEAD_INPUT_STREAM
-    void* HOS; // HEAD_OUTPUT_STREAM
-    void* TIS; // TAIL_INPUT_STREAM
-    void* TOS; // TAIL_OUTPUT_STREAM
     void* CONTEXT;
-} INFO ;
+    char ISN [BUF_SIZE]; //INPUT_SOCKET_NAME
+    char OSN [BUF_SIZE]; //OUTPUT_SOCKET_NAME
+    void* IS; // INPUT_STREAM
+    void* OS; // OUTPUT_STREAM
+} IDCard ;
 
 
 typedef struct{
+    Command type; 
     int sender;
     int recipient;
     int lastowner;
-    Command type; 
     char data[BUF_SIZE];
     int moreData;
     int messageID;
 } message;
 
-void messageInit( message* mes, int s,int r, int lo,Command t, char* d, int flag, int id  ){
-    mes -> lastowner = lo;
-    mes -> sender = s;
-    mes -> recipient = r;
-    mes -> type = t;
-    strcpy( mes -> data, d );
-    mes -> moreData = flag;
-    mes -> messageID = id;
+void zmq_messageInit( zmq_msg_t* mes, int sender, int recipient, int lastowner, Command command, char* data, int moreData, int messageID  ){
+    zmq_msg_init_size( mes, sizeof(message) );
+    message tmp;
+    tmp.sender = sender;
+    tmp.recipient = recipient;
+    tmp.lastowner = lastowner;
+    tmp.type = command;
+    strcpy( tmp.data, data );
+    tmp.moreData = moreData;
+    tmp.messageID = messageID;
+    memcpy( zmq_msg_data(mes), &tmp, sizeof(message) );
+}
+
+void messageInit( message* mes, int sender, int recipient, int lastowner, Command command, char* data, int moreData, int messageID  ){
+
+    mes -> sender = sender;
+    mes -> recipient = recipient;
+    mes -> lastowner = lastowner;
+    mes -> type = command;
+    mes -> moreData = moreData;
+    mes -> messageID = messageID;
+    strcpy( mes -> data, data );
 }

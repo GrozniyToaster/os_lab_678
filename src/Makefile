@@ -4,11 +4,13 @@ LIBS = -l zmq
 
 all: client server
 
-client:  client.c structs.h
+client:  client.c structs.h output_module
 	$(CC) $(CC_FLAGS) $< $(LIBS) -o $@
 
 server: server.c structs.h
 	$(CC) $(CC_FLAGS) $< $(LIBS) -o $@
 
+output_module: OutputModule.c structs.h
+	$(CC) $(CC_FLAGS) $< $(LIBS) -o $@
 clean: 
 	rm client server
