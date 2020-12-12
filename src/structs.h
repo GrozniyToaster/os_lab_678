@@ -12,6 +12,7 @@ typedef enum {
     ANSWER,
     PING,
     DATA,
+    DELETE,
     ERR
 } Command;
 
@@ -67,3 +68,7 @@ void messageInit( message* mes, int sender, int recipient, int lastowner, Comman
     mes -> messageID = messageID;
     strcpy( mes -> data, data );
 }
+
+void message_standart( zmq_msg_t* mes, int sender ,int recipient, Command command, char* data ) {
+    zmq_messageInit( mes, sender, recipient, sender, command, data, 0, 0 );
+} 

@@ -35,8 +35,6 @@ void initialize( IDCard* ID ){
         exit(0);
     }
 
-    //char outputSocket[BUF_SIZE];
-    //char returnSocket[BUF_SIZE];
     sprintf( ID -> OSN, "ipc://%s/master.out", TEMP_DIR  );
     sprintf( ID -> PSN, "ipc://%s/ping", TEMP_DIR  );
 
@@ -71,16 +69,16 @@ int rmrf(char *path){
 void deinitialize( IDCard* ID ){
     zmq_close(ID -> OS );
     zmq_close(ID -> PS );
-    /*
+    
     for ( int i = 0; i < MAX_CHILD; ++i ){
         if ( CHILDS[i] != -1 ){
             kill( CHILDS[i] , SIGKILL );
         }
     }
-    */
+    
     zmq_ctx_destroy (ID -> CONTEXT);
     rmrf( TEMP_DIR );
-    kill( 0, SIGKILL );
+    //kill( 0, SIGKILL );
 }
 
 void recreateOutput(){
@@ -142,7 +140,7 @@ void ping(){
     for ( int i = 0; i < MAX_CHILD; i++ ){
         pings[i] = -1;
     }
-    printf("Serv start collect pings \n" );
+    //printf("Serv start collect pings \n" );
     message data;
     errno = 0;
     int i = 0;
@@ -170,12 +168,16 @@ void ping(){
     int count_to_kill = 0;
     for ( int i = 0 ; i < MAX_CHILD; i++ ){
         if (  CHILDS[i] != -1 && pings[i] != 1 ){
-            printf( "ping %d child %d\n", pings[i], CHILDS[i] );
+            //printf( "ping %d child %d\n", pings[i], CHILDS[i] );
             tokill[ count_to_kill ] = i;
             count_to_kill++;
         }
     }
     char res[BUF_SIZE];
+    if ( count_to_kill == 0 ){
+        printf( "Ok: -1\n" );
+        return;
+    }
     res[0] = '\0';
     for ( int i = 0; i < count_to_kill; i++ ){
         char tmp[5];
@@ -184,7 +186,7 @@ void ping(){
         kill( CHILDS[ tokill[i] ] , SIGTERM );
         CHILDS[ tokill[i] ] = -1; 
     }
-    printf("%s\n", res );
+    printf("Ok: %s\n", res );
 }
 
 
@@ -198,16 +200,24 @@ int main (void){
     //sleep(1);
     initChild(3);
 
-    char kek[] ="Calculate";
+    char kek[] ="1 2 3 4 5";
     sleep(1);
-    ping();
+    //ping();
+    //zmq_msg_t toSend;
+    //message_standart( &toSend, MAIN_MODULE, 3, DELETE, "" );
+    //zmq_msg_send (&toSend, ID.OS ,  0);
+    //ping();
     for ( int i = 1 ; i < 4 ; i++ ){
         sleep(1);
         zmq_msg_t toSend;
-        zmq_messageInit( &toSend, -1, i, -1, CALCULATE, kek , 0, 0  );
+        zmq_messageInit( &toSend, -1, 1, -1, CALCULATE, kek , 1, 0  );
         zmq_msg_send (&toSend, ID.OS ,  0);
         zmq_msg_close( &toSend );
     }
+    zmq_msg_t toSend;
+        zmq_messageInit( &toSend, -1, 1, -1, CALCULATE, kek , 0, 0  );
+        zmq_msg_send (&toSend, ID.OS ,  0);
+        zmq_msg_close( &toSend );
     sleep(3);
     deinitialize( &ID );
     return 0;
