@@ -27,8 +27,10 @@ typedef struct {
     void* CONTEXT;
     char ISN [BUF_SIZE]; //INPUT_SOCKET_NAME
     char OSN [BUF_SIZE]; //OUTPUT_SOCKET_NAME
+    char PSN [BUF_SIZE]; //PING_SOCKET_NAME
     void* IS; // INPUT_STREAM
     void* OS; // OUTPUT_STREAM
+    void* PS; // OUTPUT_STREAM
 } IDCard ;
 
 

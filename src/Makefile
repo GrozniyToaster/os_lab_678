@@ -1,16 +1,14 @@
-CC = g++
+CC = gcc
 CC_FLAGS = -Wall -std=c17
 LIBS = -l zmq
 
 all: client server
 
-client:  client.c structs.h output_module
+client:  client.c structs.h 
 	$(CC) $(CC_FLAGS) $< $(LIBS) -o $@
 
 server: server.c structs.h
 	$(CC) $(CC_FLAGS) $< $(LIBS) -o $@
 
-output_module: OutputModule.c structs.h
-	$(CC) $(CC_FLAGS) $< $(LIBS) -o $@
 clean: 
 	rm client server
