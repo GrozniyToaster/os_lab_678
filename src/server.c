@@ -1,90 +1,10 @@
-#define _XOPEN_SOURCE 700
-
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <signal.h>
-#include <assert.h>
-#include <stdio.h>
-#include <ftw.h>
-#include <string.h>
-#include <time.h>
-#include <zmq.h>
-#include <stdbool.h>
-#include <ctype.h>
-
-#include "structs.h"
-
-#define MAX_CHILD 54
-#define MAX_INTS_IN_PACKAGE 25
+#include "server.h"
 
 int COUNT_CHILD = 0;
 int CHILDS[MAX_CHILD];
 char TEMP_DIR[] = "/tmp/lab678.XXXXXX";
 const char CHILD_NAME[] = "./client";
 IDCard ID;
-
-
-void initialize( IDCard* ID ){
-    char *dir_name = mkdtemp(TEMP_DIR);
-
-    if(dir_name == NULL){
-        printf("Error: Cant create temp directory\n");
-        exit( EXIT_FAILURE );
-    }
-
-    sprintf( ID -> OSN, "ipc://%s/master.out", TEMP_DIR  );
-    sprintf( ID -> PSN, "ipc://%s/ping", TEMP_DIR  );
-
-    ID -> MY_ID = MAIN_MODULE;
-    ID -> CONTEXT = zmq_ctx_new ();
-
-    ID -> OS = zmq_socket( ID -> CONTEXT, ZMQ_PUB );
-    int rc = zmq_bind( ID -> OS, ID -> OSN );
-    assert (rc == 0);
-
-    ID -> PS = zmq_socket( ID -> CONTEXT, ZMQ_REP );
-    rc = zmq_bind( ID -> PS, ID -> PSN );
-    assert (rc == 0);
-
-    for ( int i = 0 ; i < MAX_CHILD; i++ ){
-        CHILDS[i] = -1;
-    }
-} 
-
-int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf){
-    int rv = remove(fpath);
-    if (rv){
-        perror(fpath);
-    }
-    return rv;
-}
-
-int rmrf(char *path){
-    return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS); 
-}
-
-void deinitialize( IDCard* ID ){
-    for ( int i = 0; i < MAX_CHILD; ++i ){
-        if ( CHILDS[i] != -1 ){
-            kill( CHILDS[i] , SIGTERM );
-        }
-    }
-    zmq_close(ID -> OS );
-    zmq_close(ID -> PS );
-    zmq_ctx_destroy (ID -> CONTEXT);
-    rmrf( TEMP_DIR );
-}
-
-void recreateOutput(){
-    zmq_close (ID.OS);
-    sleep(1);
-    ID.OS = zmq_socket ( ID.CONTEXT, ZMQ_PUB );
-    int rc = zmq_bind( ID.OS, ID.OSN );
-    assert (rc == 0);
-}
-
 
 void child_init( int id ){
     if ( CHILDS[id] != -1 ){
@@ -113,7 +33,7 @@ void child_init( int id ){
 
     int childPID = fork();
     if ( childPID == -1 ){
-        printf("Fork err\n");
+        printf("Error: Fork err\n");
         return;
     }else if ( childPID == 0 ){
         execl( CHILD_NAME, argID, arg_socket_in, arg_socket_out, arg_socket_ping, NULL );
@@ -122,7 +42,6 @@ void child_init( int id ){
         COUNT_CHILD++;
     }
     printf( "Ok:%d\n", childPID );
-    return;
 }
 
 
@@ -131,14 +50,16 @@ void ping(){
     char mes[] = "PING_TO_ALL";
     zmq_messageInit( &ping_message, MAIN_MODULE, TO_ALL, MAIN_MODULE, PING, mes, 0, 0  );
     zmq_msg_send( &ping_message, ID.OS, 0 );
+
     int pings[MAX_CHILD];
     for ( int i = 0; i < MAX_CHILD; i++ ){
         pings[i] = -1;
     }
-    message data;
-    errno = 0;
+
+    printf("Ping is processing\n");
     int i = 0;
     while( i < 10 ){
+        message data;
         sleep(1);
         zmq_msg_t p;
         zmq_msg_init( &p );
@@ -150,13 +71,16 @@ void ping(){
         memcpy( &data, zmq_msg_data(&p),  sizeof(message));
         pings[ data.messageID ] = 1;
         zmq_msg_close( &p );
+        
         sleep(1);
+        
         zmq_msg_t r;
         zmq_messageInit( &r, MAIN_MODULE, data.sender, MAIN_MODULE, ANSWER, mes, 0, 0 );
         zmq_msg_send( &r, ID.PS, 0 );
         zmq_msg_close( &r );
         i++;
     }
+
     int tokill[MAX_CHILD];
     int count_to_kill = 0;
     for ( int i = 0 ; i < MAX_CHILD; i++ ){
@@ -165,11 +89,13 @@ void ping(){
             count_to_kill++;
         }
     }
-    char res[BUF_SIZE];
+
     if ( count_to_kill == 0 ){
         printf( "Ok:-1\n" );
         return;
     }
+
+    char res[BUF_SIZE];
     res[0] = '\0';
     for ( int i = 0; i < count_to_kill; i++ ){
         char tmp[5];
@@ -195,16 +121,6 @@ void remove_node( int id ){
     CHILDS[id] = -1;
     COUNT_CHILD--;
     printf("Ok\n");
-}
-
-void prepare_to_transfer( char* data, int* buf, int count_tok ){
-    printf( "prepare %d toks", count_tok );
-    data[0] = '\0';
-    for ( int i = 0 ; i < min ( count_tok, MAX_INTS_IN_PACKAGE ) ; i++ ){
-        char tmp_string[15];
-        sprintf( tmp_string, "%d ", buf[i] );
-        strcat( data, tmp_string );
-    }
 }
 
 
@@ -244,6 +160,7 @@ void preCalulate(){
     free( line );
 
     calculate( id, k, buf  );
+    free( buf );
 }
 
 void cycle(){
