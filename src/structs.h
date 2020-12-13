@@ -5,6 +5,10 @@
 #define TO_ALL -42
 #define FIRST_WATCHED -87
 
+#define MORE_DATA 1
+
+ #define min(a,b) ((a) < (b) ? (a) : (b))
+
 typedef enum {
     REPLY,
     RECONNECT,
