@@ -9,7 +9,6 @@ void forward( message* m ){
     zmq_messageInit( &answer, m -> sender, m -> recipient, ID.MY_ID, m -> type, m -> data, m -> moreData, m -> messageID );
     zmq_msg_send( &answer, ID.OS, 0 );
     zmq_msg_close( &answer );
-
 }
 
 void ping(){

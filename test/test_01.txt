@@ -1,0 +1,11 @@
+create 42 
+create 12
+create 1
+exec 1 4 1 2 3 4 
+exec 12 4 1 2 3 4 
+exec 42 4 1 2 3 4 
+remove 1
+exec 1 4 1 2 3 4
+create 1
+exec 1 4 1 2 3 4
+pingall

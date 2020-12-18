@@ -6,6 +6,7 @@ char TEMP_DIR[] = "/tmp/lab678.XXXXXX";
 const char CHILD_NAME[] = "./client";
 IDCard ID;
 
+
 void child_init( int id ){
     if ( CHILDS[id] != -1 ){
         printf("Error: Already exists\n");
@@ -153,8 +154,8 @@ void preCalulate(){
     getline( &line, &line_size, stdin );
     int* buf = malloc( k * sizeof(int) );
     int pos = 0;
-    for( char* tok = strtok( line, " " ); tok != NULL; tok = strtok(NULL, " ") ){
-        sscanf( tok, "%d", buf + pos  );
+    for( char* tok = strtok( line, " " ); tok != NULL && pos < k ; tok = strtok(NULL, " ") ){
+        sscanf( tok, "%d", buf + pos );
         pos++;
     }
     free( line );

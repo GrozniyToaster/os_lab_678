@@ -14,4 +14,4 @@ structs.o:  structs.c structs.h
 	$(CC) $(CC_FLAGS) -c $< $(LIBS) -o $@ 
 
 clean: 
-	rm client server
+	rm client server *.o
